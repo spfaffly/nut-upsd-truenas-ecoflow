@@ -16,6 +16,25 @@ generate_password() {
   tr -dc 'A-Za-z0-9' </dev/urandom | head -c 32
 }
 
+log_usb_diagnostics() {
+  if [ ! -d /dev/bus/usb ]; then
+    echo "warning: /dev/bus/usb is not present inside the container" >&2
+    echo "warning: usbhid-ups needs the USB bus exposed by the runtime" >&2
+    return
+  fi
+
+  if ! find /dev/bus/usb -mindepth 2 -maxdepth 2 -type c >/dev/null 2>&1; then
+    echo "warning: /dev/bus/usb is present but no USB device nodes were found" >&2
+    return
+  fi
+
+  if find /dev/bus/usb -mindepth 2 -maxdepth 2 -type c ! -readable | grep -q .; then
+    echo "warning: some USB device nodes are not readable by the container" >&2
+  fi
+
+  echo "info: detected USB device nodes under /dev/bus/usb" >&2
+}
+
 if [ -f /config/ups.conf ]; then
   cp /config/ups.conf /etc/nut/ups.conf
 fi
@@ -94,6 +113,8 @@ for config_file in /etc/nut/nut.conf /etc/nut/ups.conf /etc/nut/upsd.conf /etc/n
     chmod 640 "${config_file}" || echo "warning: failed to set permissions on ${config_file}" >&2
   fi
 done
+
+log_usb_diagnostics
 
 upsdrvctl -u root start
 exec upsd -F
