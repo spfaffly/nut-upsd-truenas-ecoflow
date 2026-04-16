@@ -13,7 +13,7 @@ update_ups_conf() {
 }
 
 generate_password() {
-  tr -dc 'A-Za-z0-9!@#%^*_+=-' </dev/urandom | head -c 24
+  tr -dc 'A-Za-z0-9' </dev/urandom | head -c 32
 }
 
 if [ -f /config/ups.conf ]; then
@@ -55,8 +55,8 @@ else
     mkdir -p /run
     umask 077
     cat > /run/nut-generated-credentials <<EOF
-NUT_UPSADMIN_PASSWORD=${UPSADMIN_PASSWORD}
-NUT_UPSMON_PASSWORD=${UPSMON_PASSWORD}
+NUT_UPSADMIN_PASSWORD='${UPSADMIN_PASSWORD}'
+NUT_UPSMON_PASSWORD='${UPSMON_PASSWORD}'
 EOF
     echo "warning: generated credentials were written to /run/nut-generated-credentials" >&2
   fi
