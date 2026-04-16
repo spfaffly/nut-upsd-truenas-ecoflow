@@ -5,6 +5,13 @@ escape_sed_replacement() {
   printf '%s' "$1" | sed 's/[\/&|]/\\&/g'
 }
 
+update_ups_conf() {
+  expression="$1"
+  tmp_file="$(mktemp /tmp/ups.conf.XXXXXX)"
+  sed "$expression" /etc/nut/ups.conf > "$tmp_file"
+  mv "$tmp_file" /etc/nut/ups.conf
+}
+
 if [ -f /config/ups.conf ]; then
   cp /config/ups.conf /etc/nut/ups.conf
 fi
@@ -19,28 +26,53 @@ fi
 
 if [ -f /config/upsd.users ]; then
   cp /config/upsd.users /etc/nut/upsd.users
+else
+  UPSADMIN_PASSWORD="${NUT_UPSADMIN_PASSWORD:-}"
+  UPSMON_PASSWORD="${NUT_UPSMON_PASSWORD:-}"
+
+  if [ "$UPSADMIN_PASSWORD" = "" ]; then
+    UPSADMIN_PASSWORD="$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 24)"
+    echo "warning: generated random NUT_UPSADMIN_PASSWORD=${UPSADMIN_PASSWORD}" >&2
+  fi
+
+  if [ "$UPSMON_PASSWORD" = "" ]; then
+    UPSMON_PASSWORD="$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 24)"
+    echo "warning: generated random NUT_UPSMON_PASSWORD=${UPSMON_PASSWORD}" >&2
+  fi
+
+  cat > /etc/nut/upsd.users <<EOF
+[upsadmin]
+  password = ${UPSADMIN_PASSWORD}
+  actions = SET
+  instcmds = ALL
+
+[upsmon]
+  password = ${UPSMON_PASSWORD}
+  upsmon master
+EOF
 fi
 
 if [ "${NUT_UPS_NAME:-}" != "" ]; then
   UPS_NAME_ESCAPED="$(escape_sed_replacement "${NUT_UPS_NAME}")"
-  sed "0,/^\[.*\]$/s//[${UPS_NAME_ESCAPED}]/" /etc/nut/ups.conf > /tmp/ups.conf
-  mv /tmp/ups.conf /etc/nut/ups.conf
+  update_ups_conf "0,/^\[.*\]$/s//[${UPS_NAME_ESCAPED}]/"
 fi
 
 if [ "${NUT_DRIVER:-}" != "" ]; then
   DRIVER_ESCAPED="$(escape_sed_replacement "${NUT_DRIVER}")"
-  sed "s|^[[:space:]]*driver[[:space:]]*=.*|  driver = ${DRIVER_ESCAPED}|" /etc/nut/ups.conf > /tmp/ups.conf
-  mv /tmp/ups.conf /etc/nut/ups.conf
+  update_ups_conf "s|^[[:space:]]*driver[[:space:]]*=.*|  driver = ${DRIVER_ESCAPED}|"
 fi
 
 if [ "${NUT_PORT:-}" != "" ]; then
   PORT_ESCAPED="$(escape_sed_replacement "${NUT_PORT}")"
-  sed "s|^[[:space:]]*port[[:space:]]*=.*|  port = ${PORT_ESCAPED}|" /etc/nut/ups.conf > /tmp/ups.conf
-  mv /tmp/ups.conf /etc/nut/ups.conf
+  update_ups_conf "s|^[[:space:]]*port[[:space:]]*=.*|  port = ${PORT_ESCAPED}|"
 fi
 
-chown root:nut /etc/nut/* || echo "warning: failed to set /etc/nut ownership" >&2
-chmod 640 /etc/nut/* || echo "warning: failed to set /etc/nut permissions" >&2
+for config_file in /etc/nut/nut.conf /etc/nut/ups.conf /etc/nut/upsd.conf /etc/nut/upsd.users; do
+  if [ -f "${config_file}" ]; then
+    chown root:nut "${config_file}" || echo "warning: failed to set ownership on ${config_file}" >&2
+    chmod 640 "${config_file}" || echo "warning: failed to set permissions on ${config_file}" >&2
+  fi
+done
 
 upsdrvctl -u root start
 exec upsd -F

@@ -9,7 +9,6 @@ RUN apt-get update \
 COPY docker/nut.conf /etc/nut/nut.conf
 COPY docker/ups.conf /etc/nut/ups.conf
 COPY docker/upsd.conf /etc/nut/upsd.conf
-COPY docker/upsd.users /etc/nut/upsd.users
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 
 RUN chmod +x /usr/local/bin/entrypoint.sh
