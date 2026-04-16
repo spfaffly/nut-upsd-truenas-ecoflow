@@ -49,27 +49,40 @@ log_usb_diagnostics() {
   fi
 
   # Enumerate USB devices from sysfs to show vendor/product/class for each device.
-  # This reveals whether the EcoFlow is actually present in the container's USB view.
-  # HID class devices show class=03; the EcoFlow River 3 should appear in this list.
+  # Cross-reference sysfs with /dev/bus/usb using busnum/devnum.
+  # For multi-function devices (class=ef), HID is declared at the interface level,
+  # not the device level, so we check both.
   if [ -d /sys/bus/usb/devices ]; then
-    echo "info: USB devices visible in sysfs (class=03 means HID):" >&2
+    echo "info: USB devices visible in sysfs:" >&2
     found_hid=0
     for dev_dir in /sys/bus/usb/devices/*/; do
       [ -f "${dev_dir}idVendor" ] || continue
       vendor="$(cat "${dev_dir}idVendor" 2>/dev/null || echo '????')"
       product="$(cat "${dev_dir}idProduct" 2>/dev/null || echo '????')"
-      class="$(cat "${dev_dir}bDeviceClass" 2>/dev/null || echo '??')"
+      dev_class="$(cat "${dev_dir}bDeviceClass" 2>/dev/null || echo '??')"
+      busnum="$(cat "${dev_dir}busnum" 2>/dev/null | tr -d '[:space:]')"
+      devnum="$(cat "${dev_dir}devnum" 2>/dev/null | tr -d '[:space:]')"
       manuf="$(cat "${dev_dir}manufacturer" 2>/dev/null || true)"
       prod_name="$(cat "${dev_dir}product" 2>/dev/null || true)"
-      echo "info:   ${dev_dir##/*/} vendor=$vendor product=$product class=$class${manuf:+ $manuf}${prod_name:+ $prod_name}" >&2
-      if [ "$class" = "03" ]; then
-        found_hid=1
-      fi
+      dev_node="$(printf '/dev/bus/usb/%03d/%03d' "$busnum" "$devnum" 2>/dev/null || echo unknown)"
+
+      # Collect interface classes (handles class=ef multi-function devices where
+      # HID is only declared at the interface level, not the device level)
+      iface_classes=""
+      for iface_dir in "${dev_dir}"*/; do
+        [ -f "${iface_dir}bInterfaceClass" ] || continue
+        ic="$(cat "${iface_dir}bInterfaceClass" 2>/dev/null)"
+        iface_classes="${iface_classes:+${iface_classes},}${ic}"
+        [ "$ic" = "03" ] && found_hid=1
+      done
+      [ "$dev_class" = "03" ] && found_hid=1
+
+      echo "info:   $dev_node vendor=$vendor product=$product devclass=$dev_class${iface_classes:+ ifaces=$iface_classes}${manuf:+ $manuf}${prod_name:+ $prod_name}" >&2
     done
     if [ "$found_hid" -eq 0 ]; then
-      echo "warning: no HID class (class=03) USB devices found in sysfs" >&2
-      echo "hint: the EcoFlow is likely not being passed through to this container" >&2
-      echo "hint: in TrueNAS, assign the specific EcoFlow USB device to this app, not just /dev/bus/usb" >&2
+      echo "warning: no HID class (03) found at device or interface level in sysfs" >&2
+      echo "hint: usbhid-ups requires a HID Power Device Class interface; the EcoFlow may use a proprietary protocol" >&2
+      echo "hint: check NUT compatibility for vendor=3746 product=ffff and consider a different driver" >&2
     fi
   else
     echo "info: /sys/bus/usb/devices not accessible; cannot enumerate USB device identities" >&2
