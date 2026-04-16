@@ -1,7 +1,7 @@
 FROM debian:bookworm-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
-ENV NUT_VERSION=2.8.4
+ENV NUT_VERSION=2.8.5
 ENV PATH=/usr/local/ups/sbin:/usr/local/ups/bin:${PATH}
 
 RUN apt-get update \

@@ -4,7 +4,7 @@ This is a very specific Docker image that works specifically on Truenas Custom a
 
 ## Included defaults
 
-- NUT version: `2.8.4` (built from upstream source)
+- NUT version: `2.8.5` (built from upstream source)
 - NUT mode: `standalone`
 - UPS name: `ecoflow-river3`
 - Driver: `usbhid-ups`
@@ -96,7 +96,7 @@ If the container logs show `insufficient permissions on everything`, the image r
 
 The startup log prints detailed diagnostics before NUT launches. Use this sequence:
 
-1. **Check NUT version lines** — startup now logs `upsd -V` and `upsdrvctl -V`. Confirm it reports NUT `2.8.4`.
+1. **Check NUT version lines** — startup now logs `upsd -V` and `upsdrvctl -V`. Confirm it reports NUT `2.8.5`.
 2. **Check `uid=0`** — if not, user namespace remapping is active and likely causing the failure.
 3. **Check `openable=` for each USB node** — `writable=yes openable=no` means cgroup device filtering is blocking the actual `open()` syscall even though file permissions look correct. Enable privileged mode in the TrueNAS app.
 4. **Check the sysfs device list** — verify the EcoFlow appears with `vendor=3746 product=ffff`.
