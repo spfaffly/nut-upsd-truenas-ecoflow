@@ -132,5 +132,31 @@ done
 
 log_usb_diagnostics
 
+# The kernel usbhid driver may have auto-bound to the UPS HID device, which
+# prevents libusb from claiming it via usbfs. This replicates what NUT's udev
+# rules do on a host system but cannot do inside a container.
+unbind_kernel_hid_drivers() {
+  if [ ! -d /sys/bus/usb/drivers/usbhid ]; then
+    echo "info: /sys/bus/usb/drivers/usbhid not found, skipping unbind" >&2
+    return
+  fi
+  found=0
+  for iface_path in /sys/bus/usb/drivers/usbhid/*:*; do
+    [ -e "$iface_path" ] || continue
+    iface_id="$(basename "$iface_path")"
+    found=1
+    echo "info: unbinding kernel usbhid driver from interface $iface_id" >&2
+    if echo "$iface_id" > /sys/bus/usb/drivers/usbhid/unbind 2>/dev/null; then
+      echo "info: unbound $iface_id" >&2
+    else
+      echo "warning: could not unbind $iface_id (may need privileged mode or CAP_SYS_ADMIN)" >&2
+    fi
+  done
+  if [ "$found" -eq 0 ]; then
+    echo "info: no usbhid-bound interfaces found to unbind" >&2
+  fi
+}
+unbind_kernel_hid_drivers
+
 upsdrvctl -u root start
 exec upsd -F
