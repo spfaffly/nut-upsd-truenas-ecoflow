@@ -49,6 +49,6 @@ Optional environment overrides:
 
 ## Security notes
 
-- If `/config/upsd.users` is not provided, the container generates random `upsadmin` and `upsmon` passwords at startup (or uses `NUT_UPSADMIN_PASSWORD` and `NUT_UPSMON_PASSWORD` if set).
+- If `/config/upsd.users` is not provided, the container generates random `upsadmin` and `upsmon` passwords at startup (or uses `NUT_UPSADMIN_PASSWORD` and `NUT_UPSMON_PASSWORD` if set). Generated credentials are written to `/run/nut-generated-credentials` inside the container.
 - `upsd` listens on `0.0.0.0:3493` by default for TrueNAS network access. You can override this with `NUT_LISTEN_ADDR` and `NUT_LISTEN_PORT`.
 - Restrict NUT access with your network/firewall policy.

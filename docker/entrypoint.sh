@@ -7,7 +7,7 @@ escape_sed_replacement() {
 
 update_ups_conf() {
   expression="$1"
-  tmp_file="$(mktemp /tmp/ups.conf.XXXXXX)"
+  tmp_file="$(mktemp)"
   sed "$expression" /etc/nut/ups.conf > "$tmp_file"
   mv "$tmp_file" /etc/nut/ups.conf
 }
@@ -39,15 +39,26 @@ if [ -f /config/upsd.users ]; then
 else
   UPSADMIN_PASSWORD="${NUT_UPSADMIN_PASSWORD:-}"
   UPSMON_PASSWORD="${NUT_UPSMON_PASSWORD:-}"
+  GENERATED_CREDENTIALS=0
 
   if [ "$UPSADMIN_PASSWORD" = "" ]; then
     UPSADMIN_PASSWORD="$(generate_password)"
-    echo "warning: generated random NUT_UPSADMIN_PASSWORD=${UPSADMIN_PASSWORD}" >&2
+    GENERATED_CREDENTIALS=1
   fi
 
   if [ "$UPSMON_PASSWORD" = "" ]; then
     UPSMON_PASSWORD="$(generate_password)"
-    echo "warning: generated random NUT_UPSMON_PASSWORD=${UPSMON_PASSWORD}" >&2
+    GENERATED_CREDENTIALS=1
+  fi
+
+  if [ "${GENERATED_CREDENTIALS}" -eq 1 ]; then
+    mkdir -p /run
+    umask 077
+    cat > /run/nut-generated-credentials <<EOF
+NUT_UPSADMIN_PASSWORD=${UPSADMIN_PASSWORD}
+NUT_UPSMON_PASSWORD=${UPSMON_PASSWORD}
+EOF
+    echo "warning: generated credentials were written to /run/nut-generated-credentials" >&2
   fi
 
   cat > /etc/nut/upsd.users <<EOF
