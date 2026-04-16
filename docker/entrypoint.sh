@@ -211,5 +211,5 @@ unbind_kernel_hid_drivers() {
 }
 unbind_kernel_hid_drivers
 
-upsdrvctl -u root start
-exec upsd -F
+upsdrvctl -u root -c /etc/nut start
+exec upsd -F -c /etc/nut

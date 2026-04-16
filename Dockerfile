@@ -23,7 +23,7 @@ RUN apt-get update \
         && wget -q -O /tmp/nut.tar.gz "https://github.com/networkupstools/nut/releases/download/v${NUT_VERSION}/nut-${NUT_VERSION}.tar.gz" \
         && tar -xzf /tmp/nut.tar.gz -C /tmp \
         && cd /tmp/nut-${NUT_VERSION} \
-        && ./configure --with-usb --with-user=nut --with-group=nut \
+        && ./configure --with-usb --with-user=nut --with-group=nut --sysconfdir=/etc/nut \
         && make -j"$(nproc)" \
         && make install \
         && rm -rf /tmp/nut.tar.gz /tmp/nut-${NUT_VERSION} \
