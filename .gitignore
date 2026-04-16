@@ -1,0 +1,35 @@
+# Docker build artifacts
+.docker/
+*.tar.gz
+*.tar
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Build outputs
+dist/
+build/
+*.o
+*.a
+*.so
+
+# NUT build artifacts (if building locally outside container)
+nut-*.tar.gz
+/nut-*/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Credentials / Secrets
+/config/upsd.users
+/run/nut-generated-credentials
+
+# OS
+Thumbs.db

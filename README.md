@@ -1,5 +1,9 @@
 # nut-upsd-truenas-ecoflow
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![NUT Version](https://img.shields.io/badge/NUT-2.8.5-blue.svg)](https://networkupstools.org/)
+[![Docker Build Status](https://github.com/spfafafa/nut-upsd-truenas-ecoflow/actions/workflows/docker-publish.yml/badge.svg)](../../actions)
+
 This is a very specific Docker image that works specifically on Truenas Custom apps with configuration for Ecoflow River 3
 
 ## Included defaults
