@@ -4,10 +4,12 @@ This is a very specific Docker image that works specifically on Truenas Custom a
 
 ## Included defaults
 
+- NUT version: `2.8.4` (built from upstream source)
 - NUT mode: `standalone`
 - UPS name: `ecoflow-river3`
 - Driver: `usbhid-ups`
 - Port: `auto`
+- Vendor/Product IDs: `3746:ffff`
 - NUT server listen: `0.0.0.0:3493`
 
 ## Build
@@ -63,6 +65,13 @@ Optional environment overrides:
 - `NUT_UPSADMIN_PASSWORD`
 - `NUT_UPSMON_PASSWORD`
 
+By default, `ups.conf` includes:
+
+- `vendorid = 3746`
+- `productid = ffff`
+
+to make matching the EcoFlow River 3 Plus more deterministic.
+
 `NUT_PORT` can be used as a fallback when `port = auto` does not work in your environment.
 
 **Option A — Specific USB device node** (preferred when the exact device is known):
@@ -87,11 +96,12 @@ If the container logs show `insufficient permissions on everything`, the image r
 
 The startup log prints detailed diagnostics before NUT launches. Use this sequence:
 
-1. **Check `uid=0`** — if not, user namespace remapping is active and likely causing the failure.
-2. **Check `openable=` for each USB node** — `writable=yes openable=no` means cgroup device filtering is blocking the actual `open()` syscall even though file permissions look correct. Enable privileged mode in the TrueNAS app.
-3. **Check the sysfs device list** — each USB device is listed with its class. `class=03` means HID. If `warning: no HID class (class=03) USB devices found` appears, the EcoFlow is not being passed through to the container at all. In TrueNAS, assign the specific EcoFlow USB device to the app rather than exposing the whole `/dev/bus/usb` bus.
-4. **Check the hidraw line** — `info: hidraw device(s) found: /dev/hidraw0` means the EcoFlow is present but the kernel's `usbhid` driver has claimed it. Set `NUT_PORT=/dev/hidraw0` and ensure that device is also exposed to the container.
-5. If the EcoFlow appears in sysfs (`class=03`) and `openable=yes`, but NUT still fails, set `NUT_PORT` to the explicit USB device path shown in the per-node log lines.
+1. **Check NUT version lines** — startup now logs `upsd -V` and `upsdrvctl -V`. Confirm it reports NUT `2.8.4`.
+2. **Check `uid=0`** — if not, user namespace remapping is active and likely causing the failure.
+3. **Check `openable=` for each USB node** — `writable=yes openable=no` means cgroup device filtering is blocking the actual `open()` syscall even though file permissions look correct. Enable privileged mode in the TrueNAS app.
+4. **Check the sysfs device list** — verify the EcoFlow appears with `vendor=3746 product=ffff`.
+5. **Check the hidraw line** — `info: hidraw device(s) found: /dev/hidraw0` means the EcoFlow is present but the kernel's `usbhid` driver has claimed it. Set `NUT_PORT=/dev/hidraw0` and ensure that device is also exposed to the container.
+6. If the EcoFlow appears in sysfs with `vendor=3746 product=ffff` and USB nodes are `openable=yes`, but NUT still fails, capture the new startup logs and run `usbhid-ups -DD -a ecoflow-river3 -x vendorid=3746 -x productid=ffff -x explore=1 -x pollonly` inside the container for low-level probe output.
 
 The generated `upsadmin` and `upsmon` credentials are unrelated to this USB access error.
 

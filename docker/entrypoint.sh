@@ -16,6 +16,11 @@ generate_password() {
   tr -dc 'A-Za-z0-9' </dev/urandom | head -c 32
 }
 
+log_nut_versions() {
+  upsd -V 2>&1 | sed 's/^/info: /' >&2 || true
+  upsdrvctl -V 2>&1 | sed 's/^/info: /' >&2 || true
+}
+
 log_usb_diagnostics() {
   echo "info: running as uid=$(id -u) gid=$(id -g)" >&2
 
@@ -177,6 +182,7 @@ for config_file in /etc/nut/nut.conf /etc/nut/ups.conf /etc/nut/upsd.conf /etc/n
   fi
 done
 
+log_nut_versions
 log_usb_diagnostics
 
 # The kernel usbhid driver may have auto-bound to the UPS HID device, which
