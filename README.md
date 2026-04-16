@@ -42,3 +42,8 @@ Optional environment overrides:
 - `NUT_UPS_NAME`
 - `NUT_DRIVER`
 - `NUT_PORT`
+
+## Security notes
+
+- The included `upsd.users` file uses default credentials for initial setup. Override `/config/upsd.users` before production use.
+- `upsd` listens on `0.0.0.0:3493` by default for TrueNAS network access. Restrict access with your network/firewall policy.
