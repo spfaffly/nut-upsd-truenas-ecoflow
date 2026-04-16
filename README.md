@@ -85,13 +85,13 @@ The startup log will print `info: hidraw device(s) found: ...` if this interface
 
 If the container logs show `insufficient permissions on everything`, the image reached the USB driver startup step and the failure is at the runtime/device layer.
 
-The startup log now prints detailed diagnostics before NUT launches. Use this sequence:
+The startup log prints detailed diagnostics before NUT launches. Use this sequence:
 
-1. **Check the UID line** — `info: running as uid=0` confirms the container process is root. Any other UID means user namespace remapping is active and likely causing the failure.
-2. **Check per-device lines** — lines like `info: /dev/bus/usb/001/005 readable=yes writable=no` indicate the device is visible but libusb cannot open it. Enable privileged mode in the TrueNAS app or ensure the app has write access to the USB device cgroup.
-3. **Check for `writable=no` warnings** — `warning: one or more USB device nodes are not writable` with `hint: try enabling privileged mode` is the most common cause after device visibility is confirmed.
-4. **Check the hidraw line** — `info: hidraw device(s) found: /dev/hidraw0` means the EcoFlow is exposed through a different interface. Set `NUT_PORT=/dev/hidraw0` (or the shown path) in the TrueNAS app environment variables, and ensure that device is also passed to the container.
-5. If `port = auto` still does not find the UPS after confirming writable access, set `NUT_PORT` to the explicit device path shown in the log.
+1. **Check `uid=0`** — if not, user namespace remapping is active and likely causing the failure.
+2. **Check `openable=` for each USB node** — `writable=yes openable=no` means cgroup device filtering is blocking the actual `open()` syscall even though file permissions look correct. Enable privileged mode in the TrueNAS app.
+3. **Check the sysfs device list** — each USB device is listed with its class. `class=03` means HID. If `warning: no HID class (class=03) USB devices found` appears, the EcoFlow is not being passed through to the container at all. In TrueNAS, assign the specific EcoFlow USB device to the app rather than exposing the whole `/dev/bus/usb` bus.
+4. **Check the hidraw line** — `info: hidraw device(s) found: /dev/hidraw0` means the EcoFlow is present but the kernel's `usbhid` driver has claimed it. Set `NUT_PORT=/dev/hidraw0` and ensure that device is also exposed to the container.
+5. If the EcoFlow appears in sysfs (`class=03`) and `openable=yes`, but NUT still fails, set `NUT_PORT` to the explicit USB device path shown in the per-node log lines.
 
 The generated `upsadmin` and `upsmon` credentials are unrelated to this USB access error.
 

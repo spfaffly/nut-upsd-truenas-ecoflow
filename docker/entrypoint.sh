@@ -32,13 +32,47 @@ log_usb_diagnostics() {
         perms="$(ls -la "$node" 2>/dev/null || echo 'unreadable')"
         readable="$([ -r "$node" ] && echo yes || echo no)"
         writable="$([ -w "$node" ] && echo yes || echo no)"
-        echo "info: $node readable=$readable writable=$writable -- $perms" >&2
+        # Test actual open() with O_RDWR — -w only checks file permissions (access syscall),
+        # not cgroup device rules, which are enforced at open() time.
+        if (exec 3<>"$node") 2>/dev/null; then
+          openable=yes
+        else
+          openable=no
+        fi
+        echo "info: $node readable=$readable writable=$writable openable=$openable -- $perms" >&2
+        if [ "$writable" = yes ] && [ "$openable" = no ]; then
+          echo "warning: $node cannot be opened despite file permissions allowing it" >&2
+          echo "hint: cgroup device filtering is likely blocking open(); try enabling privileged mode in TrueNAS" >&2
+        fi
       done
-      if echo "$usb_nodes" | xargs -I{} sh -c '[ ! -w "{}" ]' 2>/dev/null | grep -q .; then
-        echo "warning: one or more USB device nodes are not writable" >&2
-        echo "hint: libusb requires write access; try enabling privileged mode in the TrueNAS app or check user namespace remapping" >&2
-      fi
     fi
+  fi
+
+  # Enumerate USB devices from sysfs to show vendor/product/class for each device.
+  # This reveals whether the EcoFlow is actually present in the container's USB view.
+  # HID class devices show class=03; the EcoFlow River 3 should appear in this list.
+  if [ -d /sys/bus/usb/devices ]; then
+    echo "info: USB devices visible in sysfs (class=03 means HID):" >&2
+    found_hid=0
+    for dev_dir in /sys/bus/usb/devices/*/; do
+      [ -f "${dev_dir}idVendor" ] || continue
+      vendor="$(cat "${dev_dir}idVendor" 2>/dev/null || echo '????')"
+      product="$(cat "${dev_dir}idProduct" 2>/dev/null || echo '????')"
+      class="$(cat "${dev_dir}bDeviceClass" 2>/dev/null || echo '??')"
+      manuf="$(cat "${dev_dir}manufacturer" 2>/dev/null || true)"
+      prod_name="$(cat "${dev_dir}product" 2>/dev/null || true)"
+      echo "info:   ${dev_dir##/*/} vendor=$vendor product=$product class=$class${manuf:+ $manuf}${prod_name:+ $prod_name}" >&2
+      if [ "$class" = "03" ]; then
+        found_hid=1
+      fi
+    done
+    if [ "$found_hid" -eq 0 ]; then
+      echo "warning: no HID class (class=03) USB devices found in sysfs" >&2
+      echo "hint: the EcoFlow is likely not being passed through to this container" >&2
+      echo "hint: in TrueNAS, assign the specific EcoFlow USB device to this app, not just /dev/bus/usb" >&2
+    fi
+  else
+    echo "info: /sys/bus/usb/devices not accessible; cannot enumerate USB device identities" >&2
   fi
 
   # Check for hidraw devices as a fallback interface
