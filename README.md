@@ -63,25 +63,35 @@ Optional environment overrides:
 - `NUT_UPSADMIN_PASSWORD`
 - `NUT_UPSMON_PASSWORD`
 
-`NUT_PORT` can be used as a fallback when `port = auto` does not work in your environment. For example, if the app runtime exposes a specific USB device node and auto-detection still fails, set `NUT_PORT` to that device path or provide a custom `/config/ups.conf`.
+`NUT_PORT` can be used as a fallback when `port = auto` does not work in your environment.
+
+**Option A — Specific USB device node** (preferred when the exact device is known):
+
+```sh
+NUT_PORT=/dev/bus/usb/001/005
+```
+
+Replace `001/005` with the actual bus and device numbers visible in TrueNAS or from `lsusb` on the host.
+
+**Option B — hidraw interface** (use when the EcoFlow is exposed via `/dev/hidraw*` instead of usbfs):
+
+```sh
+NUT_PORT=/dev/hidraw0
+```
+
+The startup log will print `info: hidraw device(s) found: ...` if this interface is available, and suggest it as an alternative. You can also provide a full `/config/ups.conf` override with `port = /dev/hidraw0` instead of using the environment variable.
 
 ## TrueNAS troubleshooting
 
 If the container logs show `insufficient permissions on everything`, the image reached the USB driver startup step and the failure is at the runtime/device layer.
 
-Use this sequence:
+The startup log now prints detailed diagnostics before NUT launches. Use this sequence:
 
-1. Confirm the TrueNAS app exposes the UPS USB device to the container.
-2. If the app still cannot open the HID device, enable privileged mode as a diagnostic step.
-3. Redeploy the app and review the startup logs.
-4. Look for the new startup diagnostics.
-
-- `warning: /dev/bus/usb is not present inside the container`
-- `warning: /dev/bus/usb is present but no USB device nodes were found`
-- `warning: some USB device nodes are not readable by the container`
-- `info: detected USB device nodes under /dev/bus/usb`
-
-1. If USB nodes are present but `port = auto` still does not find the UPS, set `NUT_PORT` explicitly or mount a custom `/config/ups.conf`.
+1. **Check the UID line** — `info: running as uid=0` confirms the container process is root. Any other UID means user namespace remapping is active and likely causing the failure.
+2. **Check per-device lines** — lines like `info: /dev/bus/usb/001/005 readable=yes writable=no` indicate the device is visible but libusb cannot open it. Enable privileged mode in the TrueNAS app or ensure the app has write access to the USB device cgroup.
+3. **Check for `writable=no` warnings** — `warning: one or more USB device nodes are not writable` with `hint: try enabling privileged mode` is the most common cause after device visibility is confirmed.
+4. **Check the hidraw line** — `info: hidraw device(s) found: /dev/hidraw0` means the EcoFlow is exposed through a different interface. Set `NUT_PORT=/dev/hidraw0` (or the shown path) in the TrueNAS app environment variables, and ensure that device is also passed to the container.
+5. If `port = auto` still does not find the UPS after confirming writable access, set `NUT_PORT` to the explicit device path shown in the log.
 
 The generated `upsadmin` and `upsmon` credentials are unrelated to this USB access error.
 

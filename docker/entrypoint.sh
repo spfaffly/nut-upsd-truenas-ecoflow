@@ -17,22 +17,38 @@ generate_password() {
 }
 
 log_usb_diagnostics() {
+  echo "info: running as uid=$(id -u) gid=$(id -g)" >&2
+
   if [ ! -d /dev/bus/usb ]; then
     echo "warning: /dev/bus/usb is not present inside the container" >&2
     echo "warning: usbhid-ups needs the USB bus exposed by the runtime" >&2
-    return
+  else
+    usb_nodes="$(find /dev/bus/usb -mindepth 2 -maxdepth 2 -type c 2>/dev/null)"
+    if [ -z "$usb_nodes" ]; then
+      echo "warning: /dev/bus/usb is present but no USB device nodes were found" >&2
+    else
+      echo "info: detected USB device nodes under /dev/bus/usb" >&2
+      echo "$usb_nodes" | while IFS= read -r node; do
+        perms="$(ls -la "$node" 2>/dev/null || echo 'unreadable')"
+        readable="$([ -r "$node" ] && echo yes || echo no)"
+        writable="$([ -w "$node" ] && echo yes || echo no)"
+        echo "info: $node readable=$readable writable=$writable -- $perms" >&2
+      done
+      if echo "$usb_nodes" | xargs -I{} sh -c '[ ! -w "{}" ]' 2>/dev/null | grep -q .; then
+        echo "warning: one or more USB device nodes are not writable" >&2
+        echo "hint: libusb requires write access; try enabling privileged mode in the TrueNAS app or check user namespace remapping" >&2
+      fi
+    fi
   fi
 
-  if ! find /dev/bus/usb -mindepth 2 -maxdepth 2 -type c >/dev/null 2>&1; then
-    echo "warning: /dev/bus/usb is present but no USB device nodes were found" >&2
-    return
+  # Check for hidraw devices as a fallback interface
+  hidraw_nodes="$(find /dev -maxdepth 1 -name 'hidraw*' -type c 2>/dev/null)"
+  if [ -n "$hidraw_nodes" ]; then
+    echo "info: hidraw device(s) found: $hidraw_nodes" >&2
+    echo "hint: if usbfs access fails, try setting NUT_PORT to one of these (e.g. NUT_PORT=/dev/hidraw0)" >&2
+  else
+    echo "info: no /dev/hidraw* devices found" >&2
   fi
-
-  if find /dev/bus/usb -mindepth 2 -maxdepth 2 -type c ! -readable | grep -q .; then
-    echo "warning: some USB device nodes are not readable by the container" >&2
-  fi
-
-  echo "info: detected USB device nodes under /dev/bus/usb" >&2
 }
 
 if [ -f /config/ups.conf ]; then
