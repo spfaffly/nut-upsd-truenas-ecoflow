@@ -24,6 +24,7 @@ log_nut_versions() {
 ensure_runtime_dirs() {
   mkdir -p /var/state/ups /run/nut /var/lib/nut
   chown nut:nut /var/state/ups /run/nut /var/lib/nut 2>/dev/null || true
+  chmod 750 /var/state/ups /run/nut /var/lib/nut 2>/dev/null || true
 }
 
 log_usb_diagnostics() {
