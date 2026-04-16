@@ -12,12 +12,22 @@ update_ups_conf() {
   mv "$tmp_file" /etc/nut/ups.conf
 }
 
+generate_password() {
+  tr -dc 'A-Za-z0-9!@#%^*_+=-' </dev/urandom | head -c 24
+}
+
 if [ -f /config/ups.conf ]; then
   cp /config/ups.conf /etc/nut/ups.conf
 fi
 
 if [ -f /config/upsd.conf ]; then
   cp /config/upsd.conf /etc/nut/upsd.conf
+fi
+
+if [ "${NUT_LISTEN_ADDR:-}" != "" ] || [ "${NUT_LISTEN_PORT:-}" != "" ]; then
+  LISTEN_ADDR="${NUT_LISTEN_ADDR:-0.0.0.0}"
+  LISTEN_PORT="${NUT_LISTEN_PORT:-3493}"
+  printf 'LISTEN %s %s\n' "${LISTEN_ADDR}" "${LISTEN_PORT}" > /etc/nut/upsd.conf
 fi
 
 if [ -f /config/nut.conf ]; then
@@ -31,12 +41,12 @@ else
   UPSMON_PASSWORD="${NUT_UPSMON_PASSWORD:-}"
 
   if [ "$UPSADMIN_PASSWORD" = "" ]; then
-    UPSADMIN_PASSWORD="$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 24)"
+    UPSADMIN_PASSWORD="$(generate_password)"
     echo "warning: generated random NUT_UPSADMIN_PASSWORD=${UPSADMIN_PASSWORD}" >&2
   fi
 
   if [ "$UPSMON_PASSWORD" = "" ]; then
-    UPSMON_PASSWORD="$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 24)"
+    UPSMON_PASSWORD="$(generate_password)"
     echo "warning: generated random NUT_UPSMON_PASSWORD=${UPSMON_PASSWORD}" >&2
   fi
 
