@@ -18,8 +18,8 @@ RUN apt-get update \
             libusb-1.0-0-dev \
         && groupadd -r nut \
         && useradd -r -g nut -d /var/lib/nut -s /usr/sbin/nologin nut \
-        && mkdir -p /var/lib/nut /run/nut /etc/nut \
-        && chown nut:nut /var/lib/nut /run/nut \
+        && mkdir -p /var/lib/nut /run/nut /var/state/ups /etc/nut \
+        && chown nut:nut /var/lib/nut /run/nut /var/state/ups \
         && wget -q -O /tmp/nut.tar.gz "https://github.com/networkupstools/nut/releases/download/v${NUT_VERSION}/nut-${NUT_VERSION}.tar.gz" \
         && tar -xzf /tmp/nut.tar.gz -C /tmp \
         && cd /tmp/nut-${NUT_VERSION} \

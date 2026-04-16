@@ -21,6 +21,11 @@ log_nut_versions() {
   upsdrvctl -V 2>&1 | sed 's/^/info: /' >&2 || true
 }
 
+ensure_runtime_dirs() {
+  mkdir -p /var/state/ups /run/nut /var/lib/nut
+  chown nut:nut /var/state/ups /run/nut /var/lib/nut 2>/dev/null || true
+}
+
 log_usb_diagnostics() {
   echo "info: running as uid=$(id -u) gid=$(id -g)" >&2
 
@@ -182,6 +187,7 @@ for config_file in /etc/nut/nut.conf /etc/nut/ups.conf /etc/nut/upsd.conf /etc/n
   fi
 done
 
+ensure_runtime_dirs
 log_nut_versions
 log_usb_diagnostics
 
